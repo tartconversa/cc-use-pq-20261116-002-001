@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from .analytics import Analytics
 from .attendance import Attendance
 from .competition import Competition
+from .consistency import Consistency
 from .disputes import Disputes
 from .errors import DomainError
 from .publication import Publication
@@ -127,6 +128,7 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     reconciliation = Reconciliation(store)
     readiness = Readiness(store)
     sessions = ScoringSessions(store)
+    consistency = Consistency(store)
     application = FastAPI(title='Community Fitness Event Data', version='1.0.0')
     application.state.store = store
 
@@ -294,6 +296,18 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     @application.get('/events/{event_id}/snapshots-compare')
     def difference(event_id: str, older: int, newer: int):
         return publication.difference(event_id, older, newer)
+
+    @application.get('/events/{event_id}/consistency')
+    def consistency_report(event_id: str, version: int | None = None,
+                           group: str | None = None, judge: str | None = None):
+        return consistency.report(event_id, version, group, judge)
+
+    @application.get('/events/{event_id}/export/consistency.csv')
+    def consistency_csv(event_id: str, version: int | None = None,
+                        group: str | None = None, judge: str | None = None):
+        report = consistency.report(event_id, version, group, judge)
+        return PlainTextResponse(consistency.csv(report),
+                                 media_type='text/csv; charset=utf-8')
 
     @application.get('/events/{event_id}/export/standings.csv')
     def standings_csv(event_id: str, version: int | None = None):

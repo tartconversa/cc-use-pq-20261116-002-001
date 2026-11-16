@@ -59,5 +59,6 @@ class Provenance:
                     'score_card_count': sum(team['card_count'] for group in payload['scores']['groups']
                                             for team in group['teams']),
                     'encounter_count': payload['services']['total_encounters'],
+                    'consistency_digest': (payload.get('consistency') or {}).get('report_digest'),
                     'current_event_revision': self.store.one(
                         db, 'SELECT revision FROM events WHERE id=?', (event_id,))['revision']}

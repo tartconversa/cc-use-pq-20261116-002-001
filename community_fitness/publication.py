@@ -2,6 +2,7 @@ import json
 
 from .analytics import Analytics
 from .attendance import Attendance
+from .consistency import Consistency
 from .disputes import Disputes
 from .errors import DomainError, require
 from .storage import Store
@@ -14,6 +15,7 @@ class Publication:
         self.analytics = Analytics(store)
         self.attendance = Attendance(store)
         self.disputes = Disputes(store)
+        self.consistency = Consistency(store)
 
     def preview(self, event_id: str) -> dict:
         with self.store.connection() as db:
@@ -22,10 +24,12 @@ class Publication:
             services = self.analytics._services(db, event)
             unresolved = self.disputes.unresolved(db, event_id)
             attendance = self.attendance.summary(event_id, db)
+            consistency = self.consistency.build(db, event_id, scores)
             head = db.execute('SELECT MAX(version) FROM snapshots WHERE event_id=? AND status=?',
                               (event_id, 'published')).fetchone()[0] or 0
             return {'event': event, 'head_version': head, 'scores': scores,
-                    'services': services, 'attendance': attendance, 'unresolved_disputes': unresolved,
+                    'services': services, 'attendance': attendance,
+                    'unresolved_disputes': unresolved, 'consistency': consistency,
                     'publishable': event['state'] == 'closed' and scores['complete'] and not unresolved}
 
     def publish(self, event_id: str, expected_head: int, expected_revision: int) -> dict:
@@ -49,8 +53,10 @@ class Publication:
                     'Resolve score disputes before publication')
             services = self.analytics._services(db, event)
             attendance = self.attendance.summary(event_id, db)
+            consistency = self.consistency.build(db, event_id, scores)
             payload = {'version': head + 1, 'event': event, 'scores': scores,
-                       'services': services, 'attendance': attendance, 'published_at': now}
+                       'services': services, 'attendance': attendance,
+                       'consistency': consistency, 'published_at': now}
             db.execute('INSERT INTO snapshots VALUES(?,?,?,?,?,?)',
                        (event_id, head + 1, event['revision'], now, 'published',
                         json.dumps(payload, ensure_ascii=False, sort_keys=True)))

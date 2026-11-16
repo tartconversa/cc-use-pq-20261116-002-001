@@ -45,11 +45,16 @@ def main() -> None:
         assert snapshot['scores']['complete']
         assert result['accepted']
         assert publication.get(event['id']) == snapshot
+        consistency = snapshot['consistency']
         print(json.dumps({'event_id': event['id'], 'version': snapshot['version'],
                           'groups': len(snapshot['scores']['groups']),
                           'visits': snapshot['services']['total_visits'],
                           'accepted': len(result['accepted']),
-                          'rejected': len(result['rejected'])}, ensure_ascii=False))
+                          'rejected': len(result['rejected']),
+                          'consistency_digest': consistency['report_digest'],
+                          'panel_confidence': [group['panel_confidence']
+                                               for group in consistency['groups']]},
+                         ensure_ascii=False))
 
 
 if __name__ == '__main__':
